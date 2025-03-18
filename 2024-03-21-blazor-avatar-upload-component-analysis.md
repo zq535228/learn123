@@ -68,6 +68,61 @@ private async Task OnAvatarUpload(UploadFile file)
 }
 ```
 
+# Blazor 文件上传实现详解：SaveToFile 方法剖析
+
+## 简介
+
+在 Web 应用开发中，文件上传是一个常见的需求。今天我们来分析一个在 Blazor 应用中实现的文件上传方法 `SaveToFile`，这个方法展示了如何在服务器端处理文件上传并提供用户反馈。
+
+## 代码实现详解
+
+```csharp
+private async Task<bool> SaveToFile(UploadFile file)
+{
+    var ret = false;
+    try
+    {
+        // 获取wwwroot目录的物理路径
+        var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var uploaderFolder = Path.Combine(webRootPath, "images", "uploader");
+        
+        // 确保目录存在
+        Directory.CreateDirectory(uploaderFolder);
+        
+        // 生成唯一文件名
+        file.FileName = $"{Path.GetFileNameWithoutExtension(file.OriginFileName)}-{DateTimeOffset.Now:yyyyMMddHHmmss}{Path.GetExtension(file.OriginFileName)}";
+        var fileName = Path.Combine(uploaderFolder, file.FileName);
+
+        // 保存文件
+        ReadToken ??= new CancellationTokenSource();
+        ret = await file.SaveToFileAsync(fileName, MaxFileLength, ReadToken.Token);
+
+        if (ret)
+        {
+            file.PrevUrl = $"/images/uploader/{file.FileName}";
+            await MessageService.Success("文件上传成功！");
+        }
+        else
+        {
+            // 处理保存失败情况
+            var errorMessage = $"保存文件失败 {file.OriginFileName}";
+            file.Code = 1;
+            file.Error = errorMessage;
+            await MessageService.Error($"上传文件{errorMessage}");
+        }
+    }
+    catch (Exception ex)
+    {
+        // 异常处理
+        file.Code = 1;
+        file.Error = ex.Message;
+        await MessageService.Error($"文件上传失败: {ex.Message}");
+        ret = false;
+    }
+    return ret;
+}
+```
+
 ## 关键功能特性
 
 1. **文件格式验证**
